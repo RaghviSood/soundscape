@@ -1,0 +1,15 @@
+streamlit>=1.32.0
+openai-whisper
+pydub
+librosa
+noisereduce
+soundfile
+gTTS
+deep-translator
+groq
+transformers==4.40.2
+accelerate
+sentencepiece
+torch
+numpy==1.26.4
+matplotlib
