@@ -1,38 +1,36 @@
-# ── Core Streamlit ───────────────────────────────────────────
+# ── Core Streamlit ──────────────────────────────────────────
 streamlit==1.35.0
 
-# ── PyTorch CPU ───────────────────────────────────────────────
---extra-index-url https://download.pytorch.org/whl/cpu
-torch==2.3.1+cpu
-torchaudio==2.3.1+cpu
+# ── PyTorch (CPU) — 2.3.x has Python 3.12 wheels on PyPI ───
+torch==2.3.1
+torchaudio==2.3.1
 
-# ── Transformers stack — Python 3.14 compatible ───────────────
-# tokenizers 0.21+ ships pre-built wheels for Python 3.14
-tokenizers==0.21.1
-transformers==4.47.1
-accelerate==0.34.2
+# ── Transformers stack — Python 3.11/3.12 compatible ────────
+tokenizers==0.19.1
+transformers==4.42.4
+accelerate==0.31.0
 sentencepiece==0.2.0
-huggingface-hub==0.26.2
+huggingface-hub==0.24.5
 
-# ── Whisper ───────────────────────────────────────────────────
-openai-whisper==20231117
+# ── Whisper ──────────────────────────────────────────────────
+openai-whisper==20240930
 
-# ── Audio processing ──────────────────────────────────────────
+# ── Audio processing ─────────────────────────────────────────
 librosa==0.10.2
-noisereduce==3.0.3
+noisereduce==3.0.2
 soundfile==0.12.1
 pydub==0.25.1
 
-# ── NLP / Translation ─────────────────────────────────────────
+# ── NLP / Translation ────────────────────────────────────────
 deep-translator==1.11.4
-gTTS==2.5.1
-groq==0.11.0
+gTTS==2.5.3
+groq==0.9.0
 
-# ── Numerics ──────────────────────────────────────────────────
+# ── Numerics — keep numpy<2 to stay compatible with librosa/whisper
 numpy==1.26.4
 scipy==1.13.1
-matplotlib==3.9.2
+matplotlib==3.9.0
 
-# ── Misc ──────────────────────────────────────────────────────
-filelock==3.16.1
-packaging==24.2
+# ── Misc ─────────────────────────────────────────────────────
+filelock==3.14.0
+packaging==24.1
