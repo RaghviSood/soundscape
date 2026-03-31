@@ -1,0 +1,36 @@
+# ── Core Streamlit ──────────────────────────────────────────
+streamlit==1.35.0
+
+# ── PyTorch (CPU) ────────────────────────────────────────────
+torch==2.2.2
+torchaudio==2.2.2
+
+# ── Transformers stack — pre-built wheels only ───────────────
+tokenizers==0.19.1
+transformers==4.41.2
+accelerate==0.30.1
+sentencepiece==0.2.0
+huggingface-hub==0.23.2
+
+# ── Whisper ──────────────────────────────────────────────────
+openai-whisper==20231117
+
+# ── Audio processing ─────────────────────────────────────────
+librosa==0.10.2
+noisereduce==3.0.2
+soundfile==0.12.1
+pydub==0.25.1
+
+# ── NLP / Translation ────────────────────────────────────────
+deep-translator==1.11.4
+gTTS==2.5.1
+groq==0.9.0
+
+# ── Numerics ─────────────────────────────────────────────────
+numpy==1.26.4
+scipy==1.13.0
+matplotlib==3.8.4
+
+# ── Misc ─────────────────────────────────────────────────────
+filelock==3.14.0
+packaging==24.0
