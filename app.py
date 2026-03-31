@@ -5,8 +5,6 @@
 
 import streamlit as st
 import os
-import re
-import json
 import warnings
 import tempfile
 import time
@@ -23,7 +21,7 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# ─── CSS (matches soundscape.html — navy/gold/cyan palette) ──────────────────
+# ─── CSS ─────────────────────────────────────────────────────────────────────
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;600;700&family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@300;400&display=swap');
@@ -39,12 +37,10 @@ html,body,[class*="css"]{font-family:'Syne',sans-serif!important;
 .stApp{background:#0A1828!important;}
 .block-container{padding-top:1.2rem!important;max-width:1400px;}
 
-/* sidebar */
 [data-testid="stSidebar"]{background:#0d1f33!important;
   border-right:1px solid rgba(201,164,76,0.12)!important;}
 [data-testid="stSidebar"] *{color:var(--white)!important;}
 
-/* header */
 .ss-header{display:flex;align-items:center;gap:1.4rem;padding:1.1rem 2rem;
   background:rgba(13,31,51,0.95);border:1px solid rgba(201,164,76,0.2);
   border-radius:4px;margin-bottom:1.4rem;}
@@ -58,14 +54,12 @@ html,body,[class*="css"]{font-family:'Syne',sans-serif!important;
   letter-spacing:0.15em;color:var(--navy);background:var(--gold);
   padding:0.3rem 0.8rem;border-radius:2px;text-transform:uppercase;white-space:nowrap;}
 
-/* labels */
 .sec-label{font-family:'JetBrains Mono',monospace;font-size:0.6rem;
   letter-spacing:0.3em;text-transform:uppercase;color:var(--cyan);margin-bottom:0.3rem;}
 .sec-title{font-family:'Cormorant Garamond',serif;font-size:1.7rem;
   font-weight:600;color:var(--white);margin-bottom:1rem;}
 .sec-title em{color:var(--gold);font-style:normal;}
 
-/* cards */
 .ss-card{background:var(--card);border:1px solid var(--border);
   border-radius:4px;padding:1.3rem 1.5rem;margin-bottom:0.8rem;}
 .ss-card-cyan{border-color:rgba(0,217,255,0.25);}
@@ -73,17 +67,14 @@ html,body,[class*="css"]{font-family:'Syne',sans-serif!important;
   font-weight:600;color:var(--gold);margin-bottom:0.5rem;}
 .ss-card-body{font-size:0.85rem;color:var(--muted);line-height:1.65;}
 
-/* transcript */
 .transcript-box{background:rgba(0,0,0,0.3);border:1px solid rgba(0,217,255,0.2);
   border-left:3px solid var(--cyan);border-radius:2px;padding:1.1rem 1.4rem;
   font-family:'JetBrains Mono',monospace;font-size:0.82rem;line-height:1.75;
   color:var(--white);white-space:pre-wrap;max-height:260px;overflow-y:auto;}
 
-/* emotion pill */
 .em-pill{display:inline-block;padding:0.3rem 1.1rem;border-radius:20px;
   font-weight:700;font-size:0.82rem;letter-spacing:0.08em;text-transform:uppercase;}
 
-/* chat */
 .chat-u{background:rgba(201,164,76,0.1);border:1px solid rgba(201,164,76,0.22);
   border-radius:4px 4px 0 4px;padding:0.75rem 1rem;margin:0.4rem 0 0.4rem 4rem;
   font-size:0.85rem;color:var(--white);}
@@ -93,7 +84,6 @@ html,body,[class*="css"]{font-family:'Syne',sans-serif!important;
 .chat-lbl{font-family:'JetBrains Mono',monospace;font-size:0.58rem;
   letter-spacing:0.15em;color:var(--muted);margin-bottom:0.2rem;text-transform:uppercase;}
 
-/* pipeline step */
 .pip-step{display:flex;align-items:flex-start;gap:0.9rem;padding:0.7rem 0.9rem;
   border-left:2px solid rgba(201,164,76,0.25);margin-bottom:0.5rem;}
 .pip-step.done{border-color:var(--gold);}
@@ -103,7 +93,6 @@ html,body,[class*="css"]{font-family:'Syne',sans-serif!important;
 .pip-name{font-size:0.86rem;color:var(--white);}
 .pip-desc{font-size:0.72rem;color:var(--muted);}
 
-/* model tile */
 .mod-tile{background:var(--card);border:1px solid var(--border);border-radius:4px;
   padding:0.75rem 1rem;margin-bottom:0.45rem;display:flex;
   justify-content:space-between;align-items:center;}
@@ -111,7 +100,6 @@ html,body,[class*="css"]{font-family:'Syne',sans-serif!important;
 .mod-role{font-size:0.68rem;color:var(--muted);margin-top:0.12rem;}
 .mod-by{font-family:'JetBrains Mono',monospace;font-size:0.58rem;color:#4a6080;}
 
-/* streamlit overrides */
 .stButton>button{background:transparent!important;border:1px solid var(--gold)!important;
   color:var(--gold)!important;font-family:'Syne',sans-serif!important;
   font-size:0.72rem!important;font-weight:700!important;letter-spacing:0.15em!important;
@@ -147,6 +135,33 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
+# ─── MODULE-LEVEL CONSTANTS (must be defined before any tab renders) ──────────
+EMOTION_COLORS = {
+    "Happy":      ("#2ecc71", "#0d2b1a"),
+    "Neutral":    ("#3498db", "#0d1e2b"),
+    "Angry":      ("#e74c3c", "#2b0d0d"),
+    "Sad":        ("#9b59b6", "#1e0d2b"),
+    "Excited":    ("#f39c12", "#2b1e0d"),
+    "Frustrated": ("#e67e22", "#2b1a0d"),
+}
+
+LABEL_MAP = {
+    "neu": "Neutral", "hap": "Happy", "ang": "Angry",
+    "sad": "Sad",     "exc": "Excited","fru": "Frustrated",
+}
+
+SENT_MAP = {
+    "Positive": "Happy",   "Neutral": "Neutral",  "Negative": "Sad",
+    "LABEL_2":  "Happy",   "LABEL_1": "Neutral",  "LABEL_0":  "Sad",
+}
+
+
+def em_pill(label):
+    c, bg = EMOTION_COLORS.get(label, ("#C9A44C", "#1a150d"))
+    return (f'<span class="em-pill" style="background:{bg};color:{c};'
+            f'border:1px solid {c};">{label}</span>')
+
+
 # ─── SIDEBAR ─────────────────────────────────────────────────────────────────
 with st.sidebar:
     st.markdown('<div class="sec-label">// API Keys</div>', unsafe_allow_html=True)
@@ -155,9 +170,8 @@ with st.sidebar:
 
     groq_key = st.text_input("GROQ API KEY", type="password", placeholder="gsk_…",
                              help="Free key at console.groq.com — powers the Q&A chatbot")
-    hf_token = st.text_input("HUGGINGFACE TOKEN", type="password",
-                             value="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",
-                             help="Needed for speaker diarization")
+    hf_token = st.text_input("HUGGINGFACE TOKEN", type="password", placeholder="hf_…",
+                             help="Needed for speaker diarization (pyannote)")
 
     st.markdown("---")
     st.markdown('<div class="sec-label">// Pipeline Modules</div>', unsafe_allow_html=True)
@@ -223,8 +237,8 @@ def load_flan():
 
 # ─── HELPERS ─────────────────────────────────────────────────────────────────
 def audio_quality_score(arr):
-    rms = np.sqrt(np.mean(arr ** 2))
-    return round(20 * np.log10(rms + 1e-9), 2)
+    rms = np.sqrt(np.mean(arr.astype(np.float32) ** 2))
+    return round(20 * np.log10(float(rms) + 1e-9), 2)
 
 def run_flan(prompt, max_len=200):
     import torch
@@ -238,24 +252,12 @@ def run_flan(prompt, max_len=200):
 def safe_translate(text, tgt):
     try:
         from deep_translator import GoogleTranslator
-        r = GoogleTranslator(source="auto", target=tgt).translate(text)
+        # deep-translator has a 5000-char limit per request
+        chunk = text[:4500]
+        r = GoogleTranslator(source="auto", target=tgt).translate(chunk)
         return r if r else "[Empty]"
     except Exception as ex:
-        return f"[Translation error: {str(ex)[:60]}]"
-
-EMOTION_COLORS = {
-    "Happy":    ("#2ecc71","#0d2b1a"),
-    "Neutral":  ("#3498db","#0d1e2b"),
-    "Angry":    ("#e74c3c","#2b0d0d"),
-    "Sad":      ("#9b59b6","#1e0d2b"),
-    "Excited":  ("#f39c12","#2b1e0d"),
-    "Frustrated":("#e67e22","#2b1a0d"),
-}
-
-def em_pill(label):
-    c, bg = EMOTION_COLORS.get(label, ("#C9A44C","#1a150d"))
-    return (f'<span class="em-pill" style="background:{bg};color:{c};'
-            f'border:1px solid {c};">{label}</span>')
+        return f"[Translation error: {str(ex)[:80]}]"
 
 # ─── TABS ────────────────────────────────────────────────────────────────────
 tab1, tab2, tab3, tab4 = st.tabs([
@@ -334,11 +336,11 @@ if run_btn and up:
     with tempfile.TemporaryDirectory() as tmp:
         raw = os.path.join(tmp, up.name)
         with open(raw, "wb") as f:
-            f.write(up.read())
+            f.write(up.getvalue())   # FIX: use getvalue() not read() so buffer isn't consumed
 
         R = {}
 
-        # 1 — Convert
+        # 1 — Convert to WAV 16kHz mono
         prog.progress(8, "Converting to WAV 16kHz…")
         try:
             from pydub import AudioSegment
@@ -347,10 +349,13 @@ if run_btn and up:
             seg.export(wav, format="wav")
             R["duration_sec"] = len(seg) / 1000
         except Exception as e:
-            st.error(f"❌ Conversion failed: {e}"); st.stop()
+            st.error(f"❌ Conversion failed: {e}")
+            st.stop()
 
         # 2 — Enhance
         prog.progress(18, "Enhancing audio…")
+        enh_wav = wav
+        R["score_before"] = R["score_after"] = 0.0
         if do_denoise:
             try:
                 import librosa, noisereduce as nr, soundfile as sf
@@ -359,102 +364,93 @@ if run_btn and up:
                 enh = np.clip(nr.reduce_noise(y=y, sr=sr) * 1.8, -1.0, 1.0)
                 R["score_after"] = audio_quality_score(enh)
                 enh_wav = os.path.join(tmp, "enhanced.wav")
-                sf.write(enh_wav, enh, sr)
+                sf.write(enh_wav, enh.astype(np.float32), sr)
             except Exception:
                 enh_wav = wav
-                R["score_before"] = R["score_after"] = 0.0
-        else:
-            enh_wav = wav
-            R["score_before"] = R["score_after"] = 0.0
 
         # 3 — Transcribe
         prog.progress(38, "Transcribing with Whisper (may take a minute)…")
+        R["transcript"] = "[Transcription skipped]"
+        R["detected_lang"] = "unknown"
+        R["lang_conf"] = 0
         if do_transcribe:
             try:
-                mdl = load_whisper_model()
-                res = mdl.transcribe(enh_wav, fp16=False)
+                mdl_w = load_whisper_model()
+                res = mdl_w.transcribe(enh_wav, fp16=False)
                 R["transcript"]    = res["text"].strip()
-                R["detected_lang"] = res["language"]
+                R["detected_lang"] = res.get("language", "unknown")
                 lp = res.get("language_probs", {})
-                R["lang_conf"] = round(lp.get(res["language"], 0) * 100, 1) if lp else 0
+                R["lang_conf"] = round(lp.get(res.get("language",""), 0) * 100, 1) if lp else 0
             except Exception as e:
                 R["transcript"]    = f"[Transcription error: {e}]"
-                R["detected_lang"] = "unknown"
-                R["lang_conf"]     = 0
-        else:
-            R["transcript"] = "[Transcription skipped]"
-            R["detected_lang"] = "unknown"
-            R["lang_conf"] = 0
 
         # 4 — Emotion
         prog.progress(58, "Detecting emotion…")
-        LABEL_MAP = {"neu":"Neutral","hap":"Happy","ang":"Angry",
-                     "sad":"Sad","exc":"Excited","fru":"Frustrated"}
-        SENT_MAP  = {"Positive":"Happy","Neutral":"Neutral","Negative":"Sad",
-                     "LABEL_2":"Happy","LABEL_1":"Neutral","LABEL_0":"Sad"}
+        transcript_ok = R["transcript"].strip() not in [
+            "", "[Transcription skipped]"
+        ] and not R["transcript"].startswith("[Transcription error")
 
-        if do_emotion and R.get("transcript","").strip() not in ["", "[Transcription skipped]"]:
-            # Audio-based
+        for k in ["audio_emotion", "text_emotion", "emotion_label"]:
+            R[k] = "—"
+        for k in ["audio_emotion_conf", "text_emotion_conf", "emotion_conf"]:
+            R[k] = 0.0
+
+        if do_emotion and transcript_ok:
+            # Audio-based emotion
             try:
                 import librosa as lb
                 ed = load_audio_emotion()
                 ya, sra = lb.load(enh_wav, sr=16000)
                 preds = ed({"raw": ya, "sampling_rate": sra})
                 top = max(preds, key=lambda x: x["score"])
-                R["audio_emotion"]      = LABEL_MAP.get(top["label"], top["label"])
+                R["audio_emotion"]      = LABEL_MAP.get(top["label"], top["label"].capitalize())
                 R["audio_emotion_conf"] = round(top["score"] * 100, 1)
             except Exception:
                 R["audio_emotion"]      = "Neutral"
                 R["audio_emotion_conf"] = 50.0
 
-            # Text-based
+            # Text-based sentiment
             try:
                 et   = load_text_emotion()
                 tres = et(R["transcript"][:512])
-                R["text_emotion"]      = SENT_MAP.get(tres[0]["label"], "Neutral")
+                raw_lbl = tres[0]["label"]
+                R["text_emotion"]      = SENT_MAP.get(raw_lbl, "Neutral")
                 R["text_emotion_conf"] = round(tres[0]["score"] * 100, 1)
             except Exception:
-                R["text_emotion"]      = R.get("audio_emotion","Neutral")
+                R["text_emotion"]      = R.get("audio_emotion", "Neutral")
                 R["text_emotion_conf"] = 50.0
 
-            # Blend
+            # Blend audio + text
             ae, te = R["audio_emotion"], R["text_emotion"]
             ac, tc = R["audio_emotion_conf"], R["text_emotion_conf"]
-            R["emotion_label"] = te if tc > ac else ae
-            R["emotion_conf"]  = round(max(ac, tc), 1)
             if ae == te:
                 R["emotion_label"] = ae
                 R["emotion_conf"]  = round((ac + tc) / 2, 1)
-        else:
-            for k in ["audio_emotion","text_emotion","emotion_label"]:
-                R[k] = "—"
-            for k in ["audio_emotion_conf","text_emotion_conf","emotion_conf"]:
-                R[k] = 0.0
+            else:
+                R["emotion_label"] = te if tc > ac else ae
+                R["emotion_conf"]  = round(max(ac, tc), 1)
 
         # 5 — Translation
         prog.progress(72, "Translating…")
-        if do_translate and R.get("transcript","").strip() not in ["","[Transcription skipped]"]:
+        R["translations"] = {}
+        if do_translate and transcript_ok:
             t = R["transcript"]
             R["translations"] = {
                 "English": safe_translate(t, "en"),
                 "Hindi":   safe_translate(t, "hi"),
                 "Marathi": safe_translate(t, "mr"),
             }
-        else:
-            R["translations"] = {}
 
-        # 6 — Flan-T5
+        # 6 — Flan-T5 Summary
         prog.progress(85, "Generating AI summary…")
-        if do_summary and R.get("transcript","").strip() not in ["","[Transcription skipped]"]:
+        R["summary"] = R["keywords"] = ""
+        if do_summary and transcript_ok:
             t = R["transcript"][:800]
             try:
                 R["summary"]  = run_flan(f"Summarize this transcript in 2-3 sentences: {t}")
                 R["keywords"] = run_flan(f"List 5 keywords or topics from: {t}")
             except Exception as e:
-                R["summary"]  = f"[Error: {e}]"
-                R["keywords"] = ""
-        else:
-            R["summary"] = R["keywords"] = ""
+                R["summary"] = f"[Error: {e}]"
 
         prog.progress(100, "✓ Done!")
         time.sleep(0.4)
@@ -485,19 +481,18 @@ with tab2:
           </div>
         </div>""", unsafe_allow_html=True)
     else:
-        lang = R.get("detected_lang","?").upper()
+        lang = R.get("detected_lang", "?").upper()
         dur  = R.get("duration_sec", 0)
-        elbl = R.get("emotion_label","—")
+        elbl = R.get("emotion_label", "—")
         econ = R.get("emotion_conf", 0)
 
-        # Metrics
         st.markdown('<div class="sec-label">// Overview</div>', unsafe_allow_html=True)
-        m1,m2,m3,m4,m5 = st.columns(5)
-        m1.metric("Language", lang)
-        m2.metric("Duration",  f"{dur:.1f}s")
-        m3.metric("Emotion",   elbl)
-        m4.metric("Confidence",f"{econ}%" if econ else "—")
-        imp = R.get("score_after",0) - R.get("score_before",0)
+        m1, m2, m3, m4, m5 = st.columns(5)
+        m1.metric("Language",   lang)
+        m2.metric("Duration",   f"{dur:.1f}s")
+        m3.metric("Emotion",    elbl)
+        m4.metric("Confidence", f"{econ}%" if econ else "—")
+        imp = R.get("score_after", 0) - R.get("score_before", 0)
         m5.metric("Audio Gain", f"{imp:+.1f} dB" if imp else "—")
 
         st.markdown("---")
@@ -526,7 +521,7 @@ with tab2:
 
         with right:
             st.markdown('<div class="sec-label">// Emotion</div>', unsafe_allow_html=True)
-            ec, _ = EMOTION_COLORS.get(elbl, ("#C9A44C","#1a150d"))
+            ec, _ = EMOTION_COLORS.get(elbl, ("#C9A44C", "#1a150d"))
             st.markdown(f"""
             <div class="ss-card" style="padding:1.4rem;text-align:center;margin-bottom:0.8rem;">
               <div style="font-family:'JetBrains Mono',monospace;font-size:0.58rem;
@@ -556,8 +551,8 @@ with tab2:
             # Quality bars
             st.markdown('<div class="sec-label" style="margin-top:0.9rem;">// Audio Quality</div>',
                         unsafe_allow_html=True)
-            sb = R.get("score_before",-60)
-            sa = R.get("score_after", -60)
+            sb = R.get("score_before", -60)
+            sa = R.get("score_after",  -60)
             nrm = lambda v: max(0, min(100, int((v + 60) / 60 * 100)))
             st.markdown(f"""
             <div class="ss-card" style="padding:1rem;">
@@ -578,9 +573,9 @@ with tab2:
             st.markdown('<div class="sec-label">// Translations</div>', unsafe_allow_html=True)
             st.markdown('<div class="sec-title">Multilingual <em>Output</em></div>',
                         unsafe_allow_html=True)
-            flags = {"English":"🇬🇧","Hindi":"🇮🇳","Marathi":"🟠"}
+            flags = {"English": "🇬🇧", "Hindi": "🇮🇳", "Marathi": "🟠"}
             tc1, tc2, tc3 = st.columns(3)
-            for col, (ln, txt) in zip([tc1,tc2,tc3], R["translations"].items()):
+            for col, (ln, txt) in zip([tc1, tc2, tc3], R["translations"].items()):
                 with col:
                     st.markdown(f"""
                     <div class="ss-card ss-card-cyan" style="min-height:140px;">
@@ -610,9 +605,9 @@ with tab3:
           </div>
         </div>""", unsafe_allow_html=True)
     else:
-        transcript = st.session_state.get("transcript","")
-        lang       = st.session_state.get("detected_lang","en")
-        elbl       = st.session_state.get("emotion_label","unknown")
+        transcript = st.session_state.get("transcript", "")
+        lang       = st.session_state.get("detected_lang", "en")
+        elbl       = st.session_state.get("emotion_label", "unknown")
 
         for msg in st.session_state["chat_history"]:
             if msg["role"] == "user":
@@ -629,7 +624,7 @@ with tab3:
                 </div>""", unsafe_allow_html=True)
 
         st.markdown("<br>", unsafe_allow_html=True)
-        qc, bc = st.columns([5,1])
+        qc, bc = st.columns([5, 1])
         with qc:
             user_q = st.text_input("", placeholder="Ask anything about the audio…",
                                    label_visibility="collapsed", key="q_in")
@@ -644,10 +639,10 @@ with tab3:
                 f"- Transcript (first 1500 chars): {transcript[:1500]}\n\n"
                 f"Answer concisely. If the user writes in Hindi/Marathi, reply in that language."
             )
-            messages = [{"role":"system","content":sys_prompt}]
+            messages = [{"role": "system", "content": sys_prompt}]
             for m in st.session_state["chat_history"][-8:]:
-                messages.append({"role":m["role"],"content":m["content"]})
-            messages.append({"role":"user","content":user_q})
+                messages.append({"role": m["role"], "content": m["content"]})
+            messages.append({"role": "user", "content": user_q})
 
             try:
                 from groq import Groq
@@ -660,8 +655,8 @@ with tab3:
                         temperature=0.7,
                     )
                 ans = resp.choices[0].message.content
-                st.session_state["chat_history"].append({"role":"user","content":user_q})
-                st.session_state["chat_history"].append({"role":"assistant","content":ans})
+                st.session_state["chat_history"].append({"role": "user",      "content": user_q})
+                st.session_state["chat_history"].append({"role": "assistant", "content": ans})
                 st.rerun()
             except Exception as e:
                 st.error(f"Chatbot error: {e}")
@@ -684,16 +679,16 @@ with tab4:
 
     with p1:
         steps = [
-            ("01","Audio Ingestion",   "pydub — any format → WAV mono 16kHz"),
-            ("02","Enhancement",       "noisereduce + librosa → SNR scored before/after"),
-            ("03","Transcription",     "Whisper small — auto language, 90+ supported"),
-            ("04","Missing Words",     "mBERT fill-mask — [inaudible] gap filling"),
-            ("05","Emotion (Audio)",   "wav2vec2-superb — 6-class acoustic emotion"),
-            ("06","Emotion (Text)",    "XLM-RoBERTa — multilingual sentiment blend"),
-            ("07","Speaker ID",        "pyannote 3.1 — timestamped speaker segments"),
-            ("08","NLP (Flan-T5)",     "Summary · Keywords · Topic extraction"),
-            ("09","Translation",       "Google Translator → EN / HI / MR"),
-            ("10","Chatbot",           "Groq LLaMA3-70B — transcript-aware Q&A"),
+            ("01", "Audio Ingestion",   "pydub — any format → WAV mono 16kHz"),
+            ("02", "Enhancement",       "noisereduce + librosa → SNR scored before/after"),
+            ("03", "Transcription",     "Whisper small — auto language, 90+ supported"),
+            ("04", "Missing Words",     "mBERT fill-mask — [inaudible] gap filling"),
+            ("05", "Emotion (Audio)",   "wav2vec2-superb — 6-class acoustic emotion"),
+            ("06", "Emotion (Text)",    "XLM-RoBERTa — multilingual sentiment blend"),
+            ("07", "Speaker ID",        "pyannote 3.1 — timestamped speaker segments"),
+            ("08", "NLP (Flan-T5)",     "Summary · Keywords · Topic extraction"),
+            ("09", "Translation",       "Google Translator → EN / HI / MR"),
+            ("10", "Chatbot",           "Groq LLaMA3-70B — transcript-aware Q&A"),
         ]
         for num, name, desc in steps:
             done = has_results and int(num) <= 6
@@ -709,16 +704,16 @@ with tab4:
     with p2:
         st.markdown('<div class="sec-label">// Models & Libraries</div>', unsafe_allow_html=True)
         models = [
-            ("openai/whisper-small",              "OpenAI",    "ASR, 90+ languages"),
-            ("superb/wav2vec2-base-superb-er",    "Facebook",  "Audio emotion"),
-            ("twitter-xlm-roberta-base-sentiment","CardiffNLP","Text sentiment"),
-            ("bert-base-multilingual-cased",      "Google",    "Fill-mask"),
-            ("google/flan-t5-base",               "Google",    "NLP summary"),
-            ("pyannote/speaker-diarization-3.1",  "pyannote",  "Speaker ID"),
-            ("llama3-70b-8192",                   "Meta/Groq", "Q&A chatbot"),
-            ("noisereduce",                       "T.Sainburg","Noise reduction"),
-            ("deep-translator",                   "Google",    "Translation"),
-            ("gTTS",                              "Google",    "Text-to-speech"),
+            ("openai/whisper-small",               "OpenAI",    "ASR, 90+ languages"),
+            ("superb/wav2vec2-base-superb-er",     "Facebook",  "Audio emotion"),
+            ("twitter-xlm-roberta-base-sentiment", "CardiffNLP","Text sentiment"),
+            ("bert-base-multilingual-cased",       "Google",    "Fill-mask"),
+            ("google/flan-t5-base",                "Google",    "NLP summary"),
+            ("pyannote/speaker-diarization-3.1",   "pyannote",  "Speaker ID"),
+            ("llama3-70b-8192",                    "Meta/Groq", "Q&A chatbot"),
+            ("noisereduce",                        "T.Sainburg","Noise reduction"),
+            ("deep-translator",                    "Google",    "Translation"),
+            ("gTTS",                               "Google",    "Text-to-speech"),
         ]
         for mname, author, role in models:
             st.markdown(f"""
