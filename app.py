@@ -244,11 +244,6 @@ def safe_translate(text, tgt):
         return f"[Translation error: {str(ex)[:60]}]"
 
 EMOTION_COLORS = {
-    "Happy":("# 2ecc71","#0d2b1a"), "Neutral":("#3498db","#0d1e2b"),
-    "Angry":("#e74c3c","#2b0d0d"),  "Sad":("#9b59b6","#1e0d2b"),
-    "Excited":("#f39c12","#2b1e0d"),"Frustrated":("#e67e22","#2b1a0d"),
-}
-EMOTION_COLORS = {
     "Happy":    ("#2ecc71","#0d2b1a"),
     "Neutral":  ("#3498db","#0d1e2b"),
     "Angry":    ("#e74c3c","#2b0d0d"),
